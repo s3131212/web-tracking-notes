@@ -20,7 +20,7 @@ Canvas fingerprinting 之所以可能，在於 Canvas API 只是給出一堆指�
 剛剛我們提到了，canvas fingerprinting 利用了不同軟硬體設備會讓 canvas 長得不太一樣，但為什麼？明明是一樣的 script，生出來的 canvas 理應是一樣的吧？此段我們將討論一些可能導致了一樣的 script 會 render 出不一樣結果的原因。
 
 ### 字型
-正如我們在 [Cnavas Fingerprinting]({{< relref "/docs/browser-fingerprinting/techniques/canvas-fingerprinting" >}}) 討論過的，字型存在與否會影響 canvas render 出來的結果。如果 canvas 所指定的字型不存在，browser 會 fallback 回預設字型，如此 render 出來的圖片當然與那些字型存在的 browser render 出來的圖片不一樣。更有趣的是，Mowery 與 Shacham 發現即便是同個字型，可能也有不同的變體，他們觀察到 Linux 上內建的 Arial 有時和 Windows 內建的不太一樣。
+正如我們在 [Canvas Fingerprinting]({{< relref "/docs/browser-fingerprinting/techniques/canvas-fingerprinting" >}}) 討論過的，字型存在與否會影響 canvas render 出來的結果。如果 canvas 所指定的字型不存在，browser 會 fallback 回預設字型，如此 render 出來的圖片當然與那些字型存在的 browser render 出來的圖片不一樣。更有趣的是，Mowery 與 Shacham 發現即便是同個字型，可能也有不同的變體，他們觀察到 Linux 上內建的 Arial 有時和 Windows 內建的不太一樣。
 
 此外，比一般字型更有用的是 emoji。不同瀏覽器對 emoji 有不同的支援狀態，也可能 render 出不一樣的樣子。例如 `😀` 與 `☺` 在 Chromium 與 Firefox 上 render 的樣子，不用算 hash 了，用肉眼看就知道不一樣了吧。
 ![](/images/emoji-chromium-firefox.png)
@@ -48,6 +48,11 @@ Sub-pixel rendering 中一個重要的技術是 anti-aliasing（反鋸齒），�
 無論 font hinting 與 antialiasing 都是為了使 canvas render 出來更好看，但因為不同電腦的渲染方式可能不太一樣（這與瀏覽器、顯卡、驅動等都有關），導致每台電腦渲染出來的 canvas 都不一樣。
 
 除了上面提到的幾點以外，顏色疊加、混色等，也都和顯卡如何實作這些功能有密切相關，甚至即便使用同個演算法，也可能因為浮點數的關係而有差異（記得 `a+b+c != c+b+a`），不同顯卡可能渲染出有著細微差異的圖片。
+
+### Encoder / Decoder
+Canvas 在[輸出](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toDataURL)時可以指定 encoder，可是因為不同 browser 實作上的不同，有可能同樣一張圖片在經過 encoding 後就不一樣了，尤其像是 JPEG 這種 lossy compression，在不同的 encoder implementation 與參數下，很可能會產生不同結果。
+
+此外，如果在 canvas 載入一張 lossy 的圖，就會經過 decompression，decoder 的差異一樣會導致結果略有不同，然後匯出時再 compress 一次，差異就更多了。
 
 最後，[這個網站](https://browserleaks.com/canvas#how-does-it-work) 上有個 GIF 顯示了 35 個不同設備 render 出來的圖，可以參考看看。
 

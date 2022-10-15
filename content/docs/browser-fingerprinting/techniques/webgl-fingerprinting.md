@@ -62,6 +62,10 @@ WebGL Canvas Fingerprinting 的防禦方法 canvas fingerprinting 很像，畢�
 
 ![](/images/webgl-report-vm.png)
 
+或是有時 renderer 名稱就直接暴雷了。例如下圖是我在 VirtualBox 中的 Windows 跑出來的結果。
+
+![](/images/webgl-report-vm-2.png)
+
 當然，做 (anti-)anti-VM 的人大概看了會笑出來，這也太容易繞過了吧。這方法雖然對專家沒用，但在多數情境下，使用 VM 的人可能都不會刻意去改規定，他們大概也不會意識到其實 web 上也可能做到（非常陽春的）VM 偵測，只覺得奇怪怎麼驗證碼一直跳而已。
 
 ## 參考資料
