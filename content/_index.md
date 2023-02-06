@@ -70,7 +70,7 @@ Cross-site tracking 的危害通常被認為大於 same-site tracking 的危害�
 我是 [Allen Chou](https://allenchou.cc)。好，沒了。
 
 ## 授權
-本系列文章以 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 釋出。如果要使用這個網站上的資訊，基本上只要有 credit 我都不會有問題。如果對使用授權有任何疑義，歡迎聯繫我。
+本系列文章以 [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) 釋出。如果要使用這個網站上的資訊，基本上只要有 credit 我都不會有問題。如果對使用授權有任何疑義，歡迎聯繫我。
 
 ## 貢獻
 假設你發現網站上有任何資訊有誤，覺得哪裡可以寫得更好，或是有些感覺也可以分享的內容，都可以到 [repo](https://github.com/s3131212/web-tracking-notes) 開個 issue 或 PR。
