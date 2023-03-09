@@ -4,13 +4,14 @@ title: "WebRTC Fingerprinting + Media Device Fingerprinting"
 ---
 
 # WebRTC Fingerprinting + Media Device Fingerprinting
-今天要來介紹兩個與 WebRTC 有關的 browser fingerprinting 技術。WebRTC fingerprinting 利用 WebRTC 的設計，有可能洩漏使用者的 public 與 local IP address，即便有 VPN 一樣會洩漏。media device fingerprinting 則是利用了 browser 可以取得攝影機、麥克風等多媒體設備的特性，以此做 fingerprinting。
+此章將介紹兩個與 WebRTC 有關的 browser fingerprinting 技術。WebRTC fingerprinting 利用 WebRTC 的設計，有可能洩漏使用者的 public 與 local IP address，甚至即便使用 VPN 亦可能洩漏真實 IP address，不過這個漏洞已經被修補。Media device fingerprinting 則是利用了 browser 可以取得攝影機、麥克風等多媒體設備的特性，枚舉出多媒體設備並以此作為 fingerprint。
 
-## WebRTC
-WebRTC (Web Real-Time Communication) 是一個允許網頁取得影音媒體、串流影音（或任意資料）的 API。最常見的應用是線上會議軟體，網頁擷取了攝影機與麥克風的輸入，並將其串流出去。另外一個有趣的應用是在瀏覽器上做 P2P（peer-to-peer）的檔案傳輸，例如 [ShareDrop](https://github.com/szimek/sharedrop)。WebRTC 的一大特色是，這是一個 P2P 的傳輸協定，也就是資訊串流不經過伺服器，而是直接在兩個瀏覽器之間互相傳輸。這性質很重要，等等會用到。
+WebRTC (Web Real-Time Communication) 是一個允許網頁取得影音媒體、串流影音（或任意資料）的 API。最常見的應用是線上會議軟體，網頁擷取了攝影機與麥克風的輸入，並將其串流出去。另外一個應用是在瀏覽器上做 P2P（peer-to-peer）的檔案傳輸。WebRTC 的一大特色是，這是一個 P2P 的傳輸協定，也就是資訊串流不經過伺服器，而是直接在兩個瀏覽器之間互相傳輸。
 
 ## WebRTC Fingerprinting
-前面提過 WebRTC 使用 P2P 通訊，為了找到兩端之間的 network path，勢必得知道對方的位置。可是如果 client 躲在 NAT 裡面，就拿不到 public address，也就無法告訴對方自己在哪邊，因而無法建立 WebRTC connection。為了解決此問題，WebRTC 使用了一個名為 STUN（Session Traversal Utilities for NAT）的通訊協定，藉由此協定，client 可以獲得自己的 public address 與（已經打開來的）port，接著透過 WebRTC 共享給對方，並且，以此建立 P2P connection。此外，為了讓內網之間的兩端在建立連線時，可以不用經過外網繞一整圈，WebRTC 也會分享 local IP。這個描述大幅度地簡化了 STUN 的運作方式，甚至其實 STUN 也有很多不同的實作，但總之重點是透過 STUN server，WebRTC 可以拿到 local 與 public address，而且因為其運作方式，有可能繞過 VPN，即便躲在 VPN 後面一樣可以拿到真實的（ISP 的）public address。更完整的討論可以看這篇文章：[真实世界中的WebRTC：STUN, TURN and signaling](https://michaelyou.github.io/2018/08/01/%E7%9C%9F%E5%AE%9E%E4%B8%96%E7%95%8C%E4%B8%AD%E7%9A%84WebRTC/)。
+WebRTC 使用 P2P 通訊，為了找到兩端之間的路徑，勢必需要知道對方的位置。可是如果客戶端躲在 NAT1 裡面或防火牆後面，便拿不到 public IP address，也就無法告訴對方自己在哪邊，因而無法建立 WebRTC 連線。為了確保 WebRTC 在這種情境下仍然可以建立連線，開發者可以使用 ICE（Interactive Connectivity Establishment）。ICE 旨在尋找最佳的連線路徑。首先，ICE 嘗試使用作業系統和網卡提供的 IP address 連線，如果裝置在 NAT 後面，當然會失敗；接著 ICE 會藉助STUN（Session Traversal Utilities for NAT）伺服器取得 public IP address；如果仍然不行，ICE 會再藉由 TURN（Traversal Using Relay NAT）中繼伺服器轉送資料。STUN 伺服器的任務很簡單：檢查請求的 IP address，並將其回傳給請求者，從而使請求者可以知道自己的 public IP address 與 port。如果 ICE 可以成功得到有效的連線資訊，便能提供 WebRTC 使用，以此建立 P2P 連線。此外，為了讓內網之間的兩端在建立連線時，可以不用經過外網繞一整圈，ICE 也會掃描所有網路介面（interface）並取得對應的 local IP，以偵測有沒有不繞外網一大圈的路徑。上面的描述有著許多簡化，不過此處重點是：藉由 STUN server，WebRTC 可能可以拿到所有介面的 local 與 public IP address，並且有可能因為存取了 VPN client 以外的介面而繞過 VPN，即便躲在 VPN 後面，一樣可以拿到真實的 public IP address。
+
+更完整的討論可以看這篇文章：[真实世界中的WebRTC：STUN, TURN and signaling](https://michaelyou.github.io/2018/08/01/%E7%9C%9F%E5%AE%9E%E4%B8%96%E7%95%8C%E4%B8%AD%E7%9A%84WebRTC/)。
 
 因此，理論上，在建立 WebRTC connection 時，browser 可以獲得 public 與 local IP address。這便可以作為 fingerprinting 的來源。
 
@@ -88,12 +89,9 @@ navigator.mediaDevices.enumerateDevices()
 
 為了避免 media device 列表被用於 fingerprinting，標準制定者做了一些努力：
 
-首先，device ID 並不是固定的。在不同 origin 下會有不同的 ID，例如上面兩張圖就有不一樣的 ID。清除 cookie 會促使 device ID 重新生成，無痕瀏覽下每個 session 也都會有自己的 device ID，並於 session 結束時清空。因此 device ID 最多用於 same-site tracking，無法用於 cross-site tracking，而且存活長度最多就跟 cookie 一樣長而已。這裡運用的邏輯是：反正 cookie 都可以活這麼久了，讓 device ID 活一樣久其實 nothing to lose，追蹤者大可直接用 cookie 追蹤來獲得一樣的效果。不過需要注意的是，device ID 只有透過 browser 內建的方法清除 cookie 時會順便被 reset，如果用其他 anti-tracking extension 移除 cookie，device ID 會被保留。
+首先，device ID 並不是固定的。在不同 origin 下會有不同的 device ID，例如前面兩張圖片在同個裝置、同個瀏覽器下，有不一樣的 device ID。清除 cookie 會促使 device ID 重新生成，無痕瀏覽下每個 session 也都會有自己的 device ID，並於 session 結束時清空。因此 device ID 最多用於 same-site tracking，無法用於 cross-site tracking，而且存活長度頂多與 cookie 一樣長。不過需要注意的是，device ID 只有透過 browser 內建的方法清除儲存空間時會連帶被重置，如果用其他工具（例如一些 anti-tracking extension）清空儲存空間，device ID 不會一起被重置。
 
-不過，就算 device ID 不固定，裝置名稱（`label`）還是固定的啊！？於是，就如同剛剛提到的，若要取得裝置名稱，需要獲得存取權限，也就是會直接跳出一個框框問使用者是否同意網站存取麥克風或 webcam。這使得在背後偷偷做 fingerprinting 變得不太可能。但是，如果網站本來就需要麥克風與 webcam 的權限（例如一再出現的線上會議軟體），便還是可以偷偷做 fingerprinting。因此 media device fingerprinting 雖然罕見且有門檻，但仍然是可行的。
-
-
-WebRTC 相關的 fingerprinting 技術雖然在早期很盛行，但由於多數的洞要不被修補了，要不 exploit 的門檻變高了。不過即便如此，這些 fingerprinting 技術貢獻的 entropy 與其穩定性仍然是有用的，因此至今都還是能看到有人在用這些技術。
+不過，即便 device ID 不固定，裝置名稱（label）仍然是固定的。於是，如同前文所述，若要取得裝置名稱，需要獲得存取權限，也就是會直接跳出一個授權框詢問使用者是否同意網站存取麥克風或鏡頭。這使得在背後偷偷做 media device fingerprinting 變得不太可能。但是，如果網站本來便需要麥克風與鏡頭的權限（例如線上會議軟體），則還是可以暗自做 media device fingerprinting。因此 media device fingerprinting 雖然罕見且有門檻，但仍然是可行的。
 
 
 ## 參考資料

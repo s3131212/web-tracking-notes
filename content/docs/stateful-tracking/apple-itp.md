@@ -35,7 +35,7 @@ title: "如何對付傳統追蹤技術 (III)：Apple’s Intelligent Tracking Pr
 我們討論過 [cache 可以被用於 web tracking]({{< relref "/docs/stateful-tracking/storing-identifier#document-cache" >}})。為了阻止 cache-based tracking，每一筆來自 tracking domain 的 cache 在一開始會先被 flag 起來，註記為「待驗證」，如果七天內再次載入該資源（cache hit），則會重新請求該資源，檢查該資源與 cache 內的資源是否一樣，如果 cache 內的資源與新下載的資源是一樣的，則推測這筆 cache 沒有被用於 web tracking，所以就把 flag 拿掉，以後可以直接使用 cache。反之，如果 cache 內的資源與新的資源不一樣，就會把原有的 cache 刪掉，加入新的 cache 並 flag 起來，註記為「待驗證」，如此一方面可以避免 cache-based tracking，又可以避免因為資源更新而被永久地誤判為是在 tracking。
 
 ### Bounce Tracking 防禦
-在前面已經提過如何找到正在做 bounce tracking 的 tracking domain。對於 bounce tracking 的主要防禦還是在於 ITP 會把這些 tracking domain 的資料清空。除此之外，另一個防禦機制是，ITP 會把 tracking domain 上的 cookie 全部強制設定為 `SameSite=Strict`。如同討論[封鎖 third-party cookie]() 時提過的，`Strict` 的意義是，第一次從其他 domain 跳到該 domain 時，cookie 不會被自動帶入，所以這樣轉跳時路過的 tracking domain 就拿不到自己的 cookie 了。
+在前面已經提過如何找到正在做 bounce tracking 的 tracking domain。對於 bounce tracking 的主要防禦還是在於 ITP 會把這些 tracking domain 的資料清空。除此之外，另一個防禦機制是，ITP 會把 tracking domain 上的 cookie 全部強制設定為 `SameSite=Strict`。如同討論封鎖 third-party cookie 時提過的，`Strict` 的意義是，第一次從其他 domain 跳到該 domain 時，cookie 不會被自動帶入，所以這樣轉跳時路過的 tracking domain 就拿不到自己的 cookie 了。
 
 ### Link Decoration 偵測
 如果 `social.example` 已經被標注為 tracking domain，則當使用者點擊 `social.example` 上的任一連結時，如果是連往其他 domain 而且該連結含有 query string 或 fragment（URL 的格式大概是 `https://blog.example/post/1?query=string#fragment`），則 `blog.example` 上藉由 Javascript 設定的 cookie 會在一天後被刪掉。

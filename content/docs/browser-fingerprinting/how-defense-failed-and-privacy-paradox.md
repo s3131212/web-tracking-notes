@@ -137,7 +137,7 @@ console.log(screen.width, frame.contentWindow.screen.width);
 至此我們應該已經可以看出，要在 Javascript 層級去修改一個數值有多困難。所以像是 PriVaricator 等防禦手段是在 browser 層級做的，無法只靠 browser extension 做到。
 
 ## 不一致的 OS
-有些 anti-fingerprinting 技術會嘗試修改 OS 的資訊，例如仿造 user agent。然而，光是這樣還不夠，有很多管道可以洩漏真正的 OS 資訊，其中不少是我們過去介紹過的，在這邊做個總整理。
+在過去我們介紹過不少管道可以洩漏使用者的作業系統，因此就在這邊做個總整理。
 
 ### Font
 之前討論過 [fonts fingerprinting]({{< relref "/docs/browser-fingerprinting/techniques/fonts-enumeration" >}}) 技術，當時提過有些字型只內建於特定 OS，如果用 Android 就一定有 Roboto，換言之，假設找不到 Roboto，那這大概不是 Android。我們可以用這個特性來偵測 browser 有沒有嘗試騙人：如果一個 browser 宣稱自己是 Android，卻找不到 Roboto，那它很可能其實不是 Android。
@@ -155,7 +155,7 @@ WebGL report 有提供 vendor 與 renderer 資訊。如果一個宣稱自己在 
 除了 OS 資訊以外，有些 anti-fingerprinting 技術也會嘗試掩蓋自己的 browser 類型，例如 Chrome 宣稱自己是 Firefox 等，姑且不論這樣修改 user agent 可能會讓一些網站壞掉，其也很難掩蓋到完全不被發現。
 
 ### Error Message
-不同的 browser 可能會在同個情境噴出不太一樣的 error（無論是 type of error 或 error message），利用這種資訊，便可以猜出 browser 類型。
+除了 OS 資訊以外，有些 anti-fingerprinting 技術也會嘗試掩蓋自己的 browser 類型，例如 Chrome 宣稱自己是 Firefox 等，姑且不論這樣修改 user agent 可能會讓一些網站壞掉，其也很難掩蓋到完全不被發現。
 
 例如同樣是 `null[0]`，在 Firefox 上的 error message 是 "Uncaught TypeError: null has no properties"，在 Chrome 上是 "Uncaught TypeError: Cannot read properties of null (reading '0')"。
 
@@ -184,26 +184,15 @@ CSS 除了專屬於特定 OS 的規則以外，也有專屬於特定 browser 的
 ## Privacy Paradox：失敗的 Anti-Fingerprinting 技術會使 Fingerprinting 更容易
 早在 browser fingerprinting 剛被提出的年代，Peter Eckersley 便指出，anti-fingeprinting 技術可能使 fingerprint 更獨特，他將其稱為 the Paradox of Fingerprintable Privacy Enhancing Technologies。例如在那個年代大家都還在用 Flash，且 Flash 可以用來做 tracking（透過 Flash Cookie），但如果把 Flash 阻擋掉，反而會顯得很獨特，提供很大的 surprisal。現在的 anti-fingerprinting 技術大多有把 entropy 的問題考慮進去，正是為了解決這個問題。
 
-不過我這邊想討論的 privacy paradox 在意義上稍微有點不一樣。並非 anti-fingerprinting 本身使 fingerprint 變獨特，而是如果 anti-fingerprinting 失敗，fingerprint 會變得更獨特。
+不過這邊討論的 privacy paradox 在意義上稍微有點不一樣。並非 anti-fingerprinting 本身使 fingerprint 變獨特，而是如果 anti-fingerprinting 失敗，fingerprint 會變得更獨特。
 
-試想文章一開始舉例的 `screen.width`，假設我的螢幕是 1024x768，想偽裝成 1920x1080，如果我的 anti-fingerprinting 成功，tracker 只會拿到 1920，但如果失敗了，tracker 會同時拿到 1024 與 1920。於是，在使用 anti-fingerprinting 之前，tracker 只拿得到一個 data point，使用之後反而拿到兩個了。偽造 user-agent 也可能遇到一樣的問題，從前面諸多對於 OS 與 browser 特性不一致的討論，應該可以看出要猜出真正的 OS 與 browser 並非難事，於是原本從 user-agent 只知道「他的 OS 是 Mac、browser 是 Firefox」，偽造 user-agent 後，可以得出「他的 OS 是 Mac、browser 是 Firefox，但他假裝自己的 OS 是 Windows、browser 是 Chrome」，這更獨特了。又例如加上固定 noise 的 canvas fingerprinting 防禦，如果 noise 被提取出來，反而會變成超級獨特的 fingerprint，甚至比 canvas 本身還獨特，於是原本只有 canvas 可以做 fingerprinting，使用失敗的防禦手段之後有 canvas 與 noise 可以做 fingerprinting。
+試想文章一開始舉例的 screen.width，假設我的螢幕是 1024x768，想偽裝成 1920x1080，如果我的 anti-fingerprinting 成功，tracker 只會拿到 1920，但如果失敗了，tracker 會同時拿到 1024 與 1920。於是，在使用 anti-fingerprinting 之前，tracker 只拿得到一個 data point，使用之後反而拿到兩個了。偽造 user-agent 也可能遇到一樣的問題，從前面諸多對於 OS 與 browser 特性不一致的討論，應該可以看出要猜出真正的 OS 與 browser 並非難事，於是原本從 user-agent 只知道「他的 OS 是 Mac、browser 是 Firefox」，偽造 user-agent 後，可以得出「他的 OS 是 Mac、browser 是 Firefox，但他假裝自己的 OS 是 Windows、browser 是 Chrome」，這更獨特了。又例如加上固定雜訊的 canvas fingerprinting 防禦，如果雜訊被提取出來，反而會變成非常獨特的 fingerprint，甚至比 canvas 本身還獨特，於是原本只有 canvas 繪製結果可以做 fingerprinting，使用失敗的防禦手段之後有 canvas 繪製結果與固定雜訊可以做 fingerprinting。
 
 以上舉例都假設 tracker 有辦法還原出真正的 fingerprint。這看似困難，但相信前面許多討論已經顯示這並非不可能。由此可以看出，使用錯誤的 anti-fingerprinting 方法其實是在為 tracker 增加更多資料點。
 
-就算無法還原出真正的 fingerprint，光是知道 fingerprint 被偽造就是有意義的了，因為嘗試偽造 fingerprint 這件事可能非常獨特。例如，使用 1024x768 的人可能很多，但會去掩蓋螢幕解析度的人很少，於是在掩蓋螢幕解析度的同時，使用者反而提供更多 surprisal 了。甚至在 [fingerprint.js](https://github.com/fingerprintjs/fingerprintjs)（目前市面上最強的 browser fingerprinting library）就直接把是否有偽造 OS、browser、螢幕解析度等當成 fingerprinting 的 feature。
+即便無法還原出真正的 fingerprint，光是知道 fingerprint 被偽造就是有意義的了，因為嘗試偽造 fingerprint 這件事可能非常獨特。例如，使用 1024x768 的人可能很多，但會去掩蓋螢幕解析度的人很少，於是在掩蓋螢幕解析度的同時，使用者反而提供更多 surprisal 了。甚至在 fingerprint.js（目前市面上最強的 browser fingerprinting library）就直接把是否有偽造 OS、browser、螢幕解析度等當成 fingerprinting 的 feature。
 
-如果讀者之前很疑惑為什麼要一直強調可以如何發現 fingerprint 被偽造，至此應該可以理解「不發現自己在偽造 fingerprint」為何重要了。
-
-## 結語
-至此我們結束了對 browser fingerprinting 的討論。其實還有蠻多想分享的東西，但時間實在是不太夠了，還需要留一點篇幅給 privacy-preserving web tracking，所以就先收束在這邊吧。
-
-稍微回憶一下這系列是怎麼開始的。一開始我們說因為 stateful tracking 很容易被發現並砍掉，所以需要 stateless tracking 輔助，而 stateless tracking 裡面最重要的一系列的技術是 browser fingerprinting。接著我們開始討論 browser fingerprinting 的各種技術，並結束在討論其防禦手段。
-
-Browser fingerprinting 無疑是過去十年來 web tracking 領域最熱門的主題，也是最被廣泛使用的技術。為了避免隱私侵害，許多人在研究如何防禦它，也有不少 solution 已經被實際部屬出去，無論是 browser vendor 直接修改 browser 或是其他研究者透過 browser extension 來達成。然而，這些防禦手段至今仍然有未解的難題，也還有許多可以改善的空間。
-
-我們必須收束在此，不然會寫不完 QQ 之後我會把這系列的文章整理好，屆時再把一些值得提及但實在沒篇幅的主題補回去。
-
-從下一篇開始，我們會進入最後一個篇章：Privacy-preserving Web Tracking。過去我們一直在講 web tracking 好壞壞，因為 web tracking 侵害隱私，糟糕透頂，但又不可否認的 web tracking 可以達成很多事情，因此我們需要一個既能追蹤使用者又能保護使用者隱私的技術。可以怎麼做呢？就繼續看下去吧。
+如果讀者之前很疑惑為什麼要一直強調可以如何發現 fingerprint 被偽造，至此應該可以理解「不發現自己在偽造 fingerprint」為何重要了。一旦被發現偽造 fingerprint，甚至還原出 fingerprint 內容，不止使防禦失敗，甚至會更加獨特而突出。
 
 ## 參考資料
 Laperdrix, Pierre, et al. "Browser fingerprinting: A survey." ACM Transactions on the Web (TWEB) 14.2 (2020): 1-33.

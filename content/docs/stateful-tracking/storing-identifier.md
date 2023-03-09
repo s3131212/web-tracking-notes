@@ -9,11 +9,14 @@ title: "如何儲存 identifier：Cookie 以及那些意想不到的地方"
 只要可以儲存 identifier，就一定可以作到 same-site tracking，畢竟網站 A 存進去的 identifier，網站 A 當然讀得到。不過 cross-site tracking 卻不是如此，如果要做到 cross-site tracking，則追蹤者需要在不同網站維持同一個 identifier，如此才能知道兩個網站的訪客是同一個人，而在不同網站維持同個 identifier 並不是一個簡單的問題。因為cross-site tracking 的隱私危害遠大於 same-site tracking，故此文也會討論每個方法是否支援 cross-site tracking。其中 cookie 的 cross-site tracking 因為能討論的太多了，所以會放到明天的文章。
 
 ## Cookie
-首先我想簡短地介紹一下何謂 cookie，如果讀者已經知道，可以大膽地跳過此段。HTTP 是 stateless 的，每一次的請求之間都互相獨立，為了讓 web 可以變得 stateful（例如登入網站後，登入狀態可以被保留下來），就出現了 cookie。Cookie 是一個簡單的 key-value pair，每個 value 都只能是一筆很小的純文字資料，會夾帶在 HTTP request 與 response 之中，並儲存在 browser 裡面。每次發 request 時，browser 就會自動夾帶 cookie，伺服器就可以看到事先儲存在 browser 裡面的資訊；當伺服器回應時，可能也會夾帶 cookie，此時 browser 就會將伺服器給的 cookie 儲存下來供未來使用。Cookie 是以 [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin) 為儲存單位，稱為 Same-origin Policy (SOP)。可以把 origin 想像成 (protocol, domain, port) 的 tuple。例如 `http://example.com` 會有自己的 cookie，任何對 `http://example.com` 的 request 都會夾帶這個 cookie（其實有例外啦但這裡不談，下一篇就會討論了），其他 origin 原則上讀不到 `http://example.com` 的 cookie。
+若論 stateful tracking，一個簡單的直覺是直接儲存於 cookie 中。確實，identifier 可以直接儲存於 cookie 中。事實上這也是最普遍的 web tracking 形式，更甚至可說是始祖等級的技術。因此這個章節無疑地應該以 cookie 作為開頭。
 
-如果我想要儲存一個 cookie，有兩種方式，分別是從 HTTP response 設定，一個是從 Javascript 設定。
+眾所皆知的，HTTP 是 stateless 的，每一次的請求之間都互相獨立。不過總有些情境，我們會希望在 web 上實現stateful 的應用，例如登入網站後，登入狀態應該被保留下來，而不是下一個 HTTP request 時便消失。Cookie 正是嘗試解決此問題。一筆 cookie 是一個簡單的 key-value pair，每個 value 都只能是一筆很小的純文字資料，會夾帶在 HTTP request 與 response 之中，並儲存在瀏覽器裡面。每次發 request 時，瀏覽器便會自動夾帶 cookie，使伺服器得以看到先前儲存在瀏覽器中的資訊；當伺服器回應時，可能也會夾帶 cookie，此時瀏覽器會將伺服器給的 cookie 儲存下來，供未來的使用。基於資安的考量，cookie 儲存以 origin為單位，稱為 Same-origin Policy (SOP)。例如 https://example.com 有自己的 cookie，這些 cookie 只有 https://example.com 可以存取，且只有在對 https://example.com 發出的 request 時會夾帶這個 cookie1，其他 origin 原則上讀不到 http://example.com 的 cookie。
 
-Javascript 設定方式主要是去操作 `document.cookie`。需要注意的是 `document.cookie` 有設定 getter and setter，而不是單純的一個 value，所以寫進去的值不會等於讀出來的值。
+存取 cookie的方式主要有兩種，分別是從 HTTP response 設定以及從 Javascript 設定。
+
+若要使用 Javascript，可以藉由操作 document.cookie 來讀取或寫入 cookie。需要注意的是 document.cookie 有設定 getter and setter，而不是單純的 attribute，所以寫進去的值不會等於讀出來的值。
+
 ```javascript
 // Fetch all cookies
 let all_cookies = document.cookie;
@@ -34,7 +37,7 @@ Set-Cookie: tracker_id=foobar
 Cookie: tracker_id=foobar; hello=world
 ```
 
-所以這可以如何被用於 tracking 呢？一開始追蹤者發現請求中沒有帶 cookie，就先帶入一個沒用過的 identifier，例如 `tracker_id=abcde`，以後只要伺服器看到 `tracker_id` 是 `abcde`，就知道是同一個使用者了。
+至此已經可以理解 cookie 如何用於追蹤。當追蹤者發現請求中沒有帶 cookie 時，代表這可能是新的訪客，於是帶入一個新的 identifier，例如 `tracker_id=abcde`，以後只要伺服器看到 `tracker_id` 是 abcde，即可知道是之前的某個訪客，並且將不同次瀏覽的資訊連結在一起。
 
 ![](/images/cookie-in-http-header.png)
 
@@ -74,15 +77,14 @@ Local Storage 作為 identifier 的儲存位置，其使用邏輯基本上與 co
 接下來我想進入一些比較瘋狂的部份。因為 HSTS supercookie, document cache, HTTP 301 redirection cache 與 ETag 的 cross-site tracking 方法與防禦一樣，故會統一於文末討論。
 
 ## HSTS SuperCookie
-HTTP 的 `Strict-Transport-Security` response header（或通常會直接簡稱 HSTS）是個旨在提升通訊安全的功能，其用於指定哪些 domain 只可以用 HTTPS 存取。如果 `example.com` 被登記為只能用 HTTPS 存取，則如果使用者嘗試造訪 `http://example.com`，browser 會自動 redirect 到 `https://example.com`，這個 redirection 的過程只存在於 browser 中，與伺服器無關，於是使用者就不會意外地用沒加密的通道去存取 `example.com`，確保所有通訊都是加密的。HSTS 的出現是為了解決名為 [SSL stripping](https://github.com/moxie0/sslstrip) 的攻擊，不過因為與 tracking 無關所以就不深入討論了。
+HTTP 的 `Strict-Transport-Security response header`（通常簡稱為 HSTS）是個旨在提升通訊安全的功能，其用於指定哪些 domain 只可以用 HTTPS 存取。如果 example.com 被登記為只能用 HTTPS 存取，則如果使用者嘗試造訪 http://example.com，瀏覽器會自動轉址（307 redirection）到 https://example.com，且這個轉址過程只存在於瀏覽器中，與伺服器無關，於是使用者就不會意外地用沒加密的通道去存取 example.com，確保所有通訊都是加密的。
 
 HSTS 的運作方式簡單來說是，當伺服器以 HTTPS 收到請求時，可以回應一個 header：
 ```
 Strict-Transport-Security: max-age=<expire-time>
 ```
-瀏覽器收到後，會將該 domain 加入一個列表，以後只要遇到這個 domain，就強制只用 HTTPS 連線，直到過期。需要注意的是，在沒有加密的 HTTP 請求中，`Strict-Transport-Security` response header 會被忽略，只有 HTTPS 連線時可以強制要求往後都要 HTTPS 連線。
 
-想進一步了解 HSTS，可以參照 [MDN 的文件](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security)。
+瀏覽器收到後，會將該 domain 加入 HSTS 列表，往後瀏覽器若再次造訪這個 domain，便強制只用 HTTPS 連線，直到過期。需要注意的是，在沒有加密的 HTTP 請求中，Strict-Transport-Security 會被忽略，只有 HTTPS 連線時可以強制要求往後都要 HTTPS 連線。想進一步了解 HSTS，可以參照 [MDN 的文件](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security)。
 
 但這有一個問題：如果一個 domain 被加入 HSTS，就代表我造訪過該 domain。攻擊者如果嘗試讓使用者造訪 `http://tracker.example`，因為 HSTS 會自動 redirect，browser 會直接請求 `https://tracker.example`，攻擊者便可以知道使用者造訪過 `https://tracker.example`。因此，HSTS 可能洩漏瀏覽紀錄（history stealing）。
 
@@ -117,20 +119,20 @@ Strict-Transport-Security: max-age=<expire-time>
 > Since an HSTS Host may select its own host name and subdomains thereof, and this information is cached in the HSTS Policy store of conforming UAs, it is possible for those who control one or more HSTS Hosts to encode information into domain names they control and cause such UAs to cache this information as a matter of course in the
    process of noting the HSTS Host.  This information can be retrieved by other hosts through cleverly constructed and loaded web resources, causing the UA to send queries to (variations of) the encoded domain names.  Such queries can reveal whether the UA had previously visited the original HSTS Host (and subdomains).
 
-考慮到 HSTS 為資安帶來的效益遠大於可能被追蹤的風險，畢竟後者只是身份可能被發現，前者是整個加密通訊會被破壞、被監聽、被 MitM 等，風險顯然大很多，因此標準制定者與瀏覽器開發者還是決定導入 HSTS。
+考慮到 HSTS 為資安帶來的效益遠大於可能被追蹤的風險，畢竟後者是匿名身分可能被發現，前者是整個加密通訊會被破壞、被監聽、被中間人攻擊等，風險顯然大很多，因此標準制定者與瀏覽器開發者還是決定導入 HSTS。
 
-不過 HSTS supercookie 也許在理論上可以用，在實際上卻不太可行。首先，因為需要請求 HTTP 資源，如果網站使用 HTTPS，其中的 HTTP 請求會被阻擋（現今的 browser 可能會阻擋 [mixed content](https://developer.mozilla.org/en-US/docs/Web/Security/Mixed_content)），所以上述方法會因為無法發純 HTTP 請求而失敗 。至於如果網站不是用 HTTPS，那我想這問題應該比被追蹤還要更嚴重吧。此外，大量發送請求也很容易被發現，如上所述，若 identifier 的 space 要超過一百萬，就得發 20 個請求，並不是一個可以忽略的 overhead。
+不過 HSTS supercookie 也許在理論上可以用，在實際上卻不太可行。首先，因為需要請求 HTTP 資源，如果網站使用 HTTPS，其中的 HTTP 請求可能會被阻擋（現今的 browser 可能會阻擋 [mixed content](https://developer.mozilla.org/en-US/docs/Web/Security/Mixed_content)），所以上述方法會因為無法發純 HTTP 請求而失敗 。至於如果網站沒有使用 HTTPS，那也許有遠比 web tracking 更大的資安威脅需要先考慮。此外，大量發送請求也很容易被發現，如上所述，若 identifier 的 space 要超過一百萬，就必須發 20 個請求，雖然這並不是難以接受的巨大成本，但也沒有小到可以忽略。
 
 Webkit 提出了兩種解法。
 
-第一種解法是，只允許當下的 domain 與其 top-level domain 可以設定 HSTS，例如，如果有個使用者在 `site.example.com`，則只能設定 `site.example.com` 與 `example.com` 的 HSTS，不可以為 `a.example.com` 之類的設定 HSTS。如此則 supercookie 一開始就寫不進去了。
+第一種解法是，只允許當下的 domain 與其 top-level domain 可以設定 HSTS，例如，如果有個使用者在 site.example.com，則只能設定 site.example.com 與 example.com 的 HSTS，不可以為 a.example.com 設定 HSTS。如此則 supercookie 自始便無法寫入。
 
-第二個解法是，當一個 domain 已經被設定為阻擋 cookie，在該 domain 會忽略 HSTS 紀錄，所有 URL 都按照他原本的樣子出去，如此則 supercookie 讀到的數值會都是 000...。
+第二種解法是，當一個 domain 已經被視為嘗試追蹤使用者而被阻擋，在該 domain 會忽略 HSTS 紀錄，所有 URL 都按照他原本的樣子出去，如此則 supercookie 讀到的數值會都是 000...。
 
 ## Document Cache
-在日常上網時，我們常常會瀏覽重複的網頁，請求一樣的資源。試想我在維基百科上查資料，無論我在哪個條目，其實維基百科的 logo 圖片與 CSS, script 等檔案都是重複的，Browser 為了減少流量並加速操作，就會把這些檔案儲存下來，下次如果遇到重複請求，直接拿這些之前存好的東西出來用。這就是所謂的 cache。
+在日常上網時，我們常常會瀏覽重複的網頁，請求一樣的資源。試想一個人在維基百科上查資料，無論他在哪個條目，其實維基百科的標誌圖檔、CSS 檔、JavaScript 檔等可能都是重複的，瀏覽器為了減少流量並加速操作，會把這些檔案儲存下來，下次如果遇到重複請求時，可以使用這些之前存好的東西出來用。這就是所謂的 cache（快取）。
 
-Cache 是個很棒的發明，但正如前面提到的各種方法，既然 cache 會存一些東西在 browser 裡面，它也可能被用於 web tracking。Cache 用於 web tracking 的方法很多，我只會介紹其中兩個。
+正如其他會儲存資料於瀏覽器內的技術，cache也同樣有可能被用於 web tracking。Cache 用於 web tracking 的方法很多，在此介紹其中三個具有代表性的方法。
 
 第一個方法是，直接把 identifier 存在 cache 裡面。
 
@@ -164,7 +166,7 @@ Cache 是個很棒的發明，但正如前面提到的各種方法，既然 cach
 因為是 301 是永久重新導向，所以這個 cache 原則上不會過期。不過 cache 可能還是會被使用者人為清除，或瀏覽器也有自動清空 cache 的功能。
 
 ## ETag
-先前我們討論了 cache 可以如何被用來儲存 identifier，此段算是延續之前的討論，cache 的特性還能如何被運用。在 cache 的世界，有個千古難題是：我如何知道 cache 是否過期了？如果網頁已經更新了，browser 卻還提供 cache 給使用者，就會讓使用者看到舊版資料，這樣很不好。於是有個技術稱為 ETag (Entity Tag)，是一種辨識 cache 是否過期的方法，其運作方式是這樣的：
+在 cache 的世界，有個難題是：我如何知道 cache 是否過期了？如果網頁已經更新了，瀏覽器卻還提供 cache 給使用者，會讓使用者看到舊版資料，這並不是一個理想的體驗。在 Web 的世界，通常使用 ETag (Entity Tag) 來辨識 cache 是否已經過期。其運作方式是這樣的：
 1. 使用者第一次存取一個資源（可能是網頁、圖片、影片等）
 2. 伺服器回傳時夾帶一個 ETag（例如 `123`），也就是在 response header 加上 `ETag: "123"`
 3. 瀏覽器把資源存進 cache 並註明 ETag 是 `123`

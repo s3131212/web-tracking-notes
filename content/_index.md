@@ -6,9 +6,7 @@ title: "Web Tracking 筆記"
 # Web Tracking 筆記
 這一系列的文章將會介紹有關 web tracking 各種你不需要的、對你人生毫無幫助的冷知識。我們將從最基礎的概念開始講起，從追蹤技巧講到反追蹤技巧，從基本技術講到奇技淫巧，然後再討論到新世代的追蹤技術長怎樣。
 
-{{< hint info >}}
 如果你喜歡這一系列的文章，可以考慮到 GitHub 上幫按個 [star](https://github.com/s3131212/web-tracking-notes)，這對我來說是很大的鼓勵！
-{{< /hint >}}
 
 ## 起源
 這系列文章最早只是我想整理自己在 web tracking 領域的所學與一些個人見解。因為整理時正逢 iThome 鐵人賽，就順便參賽了。當時參賽標題是[〈天羅地網：淺談 Web Tracking 的過去、現在、未來〉](https://ithelp.ithome.com.tw/users/20152544/ironman/5770)。之後覺得當時有些文章寫得不理想，有些想要做延伸，所以就把文章獨立出來了。在我寫下這段文字的當下，文章內容跟鐵人賽時的文章基本上是一樣的，但如果之後要更新，我會以這邊為優先。
@@ -16,17 +14,13 @@ title: "Web Tracking 筆記"
 也因為這系列文章起源於個人筆記，所以**文章內容可能會有誤或是缺少重要資訊**，我已經盡可能做好事實查核，但可能還是會有疏忽，也可能是單純我誤解了。如果有看到錯誤，還請大家多指教。另外，也因為一開始出自鐵人賽，文風會變得有點像是部落格文章，我還正在陸續修用字。
 
 ## 什麼是 Web Tracking
-Web tracking 是指「在 web 上面追蹤使用者」的行為。
+Web tracking 是指「不同情境中重新識別使用者，而且技術上無需使用者的期待或同意」。其中，使用「情境」指使用者期望與其他類似情境分開的一系列活動，例如時隔多日再次造訪同個網站，或是同時造訪兩個不同網站，都可能屬於不同情境。強調技術上無須期待或同意，用於排除符合預期的重新辨識（例如登入帳號），並且強調這是技術上而言，法律上或道德上可能仍然需要取得同意。稍微更技術面向地來講，web tracking 是「藉由為每個使用者指定或計算出一個（唯一的） identifier，在未來遇到同一個使用者時，以此辨認出這是哪個使用者」的一系列的技術。
 
-稍微 formally 一點來講，web tracking 是「藉由為每個使用者指定或計算出一個（唯一的） identifier，在未來遇到同一個使用者時，以此辨認出這是哪個使用者」的一系列的技術。這裡所說的辨認重複使用者，不一定要是在同一個網站辨認，也關注不同網頁之間的重複使用者辨識。
+舉例來說，我是一個廣告商，使用者在 blog.example 瀏覽了一台筆電的開箱文，於是我就指定這個使用者的識別碼是 userA，並猜想他對這台筆電有興趣。當使用者又在 blog.example 繼續瀏覽了一個耳機的開箱文，我又記錄下來他喜歡耳機。至此都還在同個網站上追蹤使用者，即 same-site tracking。當使用者瀏覽 news.example 時，藉由 web tracking 技術，我發現他就是 userA，正是之前在瀏覽筆電開箱文的那個人，於是就可以在 news.example 投放廣告吸引他購買這台筆電，這就是 cross-site tracking。
 
-舉個例子，我是一個廣告商，使用者在 `blog.example` 瀏覽了一台筆電的開箱文，於是我就指定這個使用者的 identifier 是 `userA`，並猜想他對這台筆電有興趣。當使用者又在 `blog.example` 繼續瀏覽了一個耳機的開箱文，於是我又記錄下來他喜歡耳機。至此都還在同個網站上追蹤使用者，即 same-site tracking。當使用者瀏覽 `news.example` 時，藉由 web tracking 技術，我發現他就是 `userA`，正是之前在瀏覽筆電開箱文的那個人，於是就可以在 `news.example` 投放廣告吸引他購買這台筆電，這就是 cross-site tracking。
+Cross-site tracking 的危害通常被認為大於 same-site tracking 的危害。讓網站管理員知道使用者瀏覽他的網站的哪些文章可能不是大問題，尤其如果使用者有登入帳號時，網站管理員肯定知道他是誰、他在看哪些頁面。不過，如果無論使用者在瀏覽哪個網站，Facebook 都可以看到他的瀏覽紀錄，那大概就是個大問題了。也因此，許多 web tracking 的攻擊與防禦手段都更著重於 cross-site tracking，或有時會說 first-party site 是隱私界線。當然這不是說 same-site tracking 不重要，而是因其性質差異而受到比較少關注而已。
 
-Cross-site tracking 的危害通常被認為大於 same-site tracking 的危害。讓網站管理員知道我瀏覽他的網站的哪些文章可能不是大問題，尤其如果我有登入帳號時，網站管理員肯定知道我是誰，我在看什麼。不過，如果無論我在瀏覽哪個網站，Facebook 都可以看到我的瀏覽紀錄，那大概就是個大問題了。所以目前許多封鎖 tracking 的方法都更重視抵禦 cross-site tracking，至於 same-site tracking，因為傷害較小而且更難避免，所以討論會相對少一些。
-
-早期的 web tracking 通常是嘗試把一個唯一的 identifier 儲存在使用者的瀏覽器中，以後只要檢視該 identifier 便可以知道使用者是誰。通常這種需要在瀏覽器中儲存資料的技術被稱為 stateful tracking。但 stateful tracking 有個問題：如果使用者把 identifier 刪掉，就追蹤不到他了。於是之後有人在想，如果不存資料在瀏覽器中，而是利用一些特徵去「算出」identifier，使用者就沒辦法把東西刪掉了，至此我們進入 stateless tracking 的時代。
-
-在 stateless tracking 的技術中，最知名也最廣泛被使用的是 browser fingerprinting。Browser fingerprinting 利用了瀏覽器、OS、硬體等的各種資訊，去算出一個 identifier，因為這些資訊不一定會常有變動（至少多數人不會每三天換一張顯卡吧），所以每次算出來的 identifier 的課都有很高的機率是一樣的。
+早期的 web tracking 通常是嘗試把一個唯一的 identifier 儲存在使用者的瀏覽器中，以後只要檢視該 identifier 便可以知道使用者是誰。通常這種需要在瀏覽器中儲存資料的技術被稱為 stateful tracking。但 stateful tracking 有個問題：如果使用者把 identifier 刪掉，就追蹤不到他了。於是之後有人在想，如果不將 identifier 儲存於瀏覽器中，而是利用一些特徵去「算出」identifier，使用者就沒辦法把儲存的資料刪掉了，至此我們進入 stateless tracking 的時代。在 stateless tracking 的技術中，最知名也最廣泛被使用的是 browser fingerprinting。Browser fingerprinting 利用了瀏覽器、作業系統、硬體等的各種資訊，去算出一個 identifier，因為這些資訊不一定會常有變動，所以每次算出來的 identifier 的課都有很高的機率是一致或雷同的。
 
 ## 所以這跟  Security 有什麼關係？
 一般來說，資安（security）與隱私（privacy）是難以分割的，例如藉由資安的技術保護隱私（個人資料等），隱私的洩漏可能創造新的資安危機，所以我們常把 security 與 privacy 合併使用。我認為不應該把 security 狹隘地想像成駭進別人的電腦然後提權拿到 root，其他重要的問題，像是如何維持通訊安全（e.g. HTTPS）以及在網路上保持匿名（e.g. Tor），或是在資訊不洩漏的情況下做到很多功能（e.g. privacy-preserving 的應用、密碼學黑魔法），也都是資安的一環。

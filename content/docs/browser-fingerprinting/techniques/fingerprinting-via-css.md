@@ -4,14 +4,16 @@ title: "Fingerprinting via CSS"
 ---
 
 # Fingerprinting via CSS (JS-less Fingerprinting)
-過去我們討論 browser fingerprinting 時，總是離不開 Javascript，無論是蒐集 Javascript 本身的性質或是利用 Javascript 去蒐集 browser 其他的性質，都建立在我們可以使用 Javascript，事實上多數 browser fingerprinting 都需要 Javascript 才可以執行，於是許多人會說如果停用 Javascript 就可以避免被 browser fingerprinting 了。這篇文章將會討論，如果沒有 Javascript，如何單純使用 CSS 達到 browser fingerprinting。
+過去我們討論 browser fingerprinting 時，總是離不開 JavaScript，無論是蒐集 JavaScript 本身的性質或是利用 JavaScript 去蒐集瀏覽器其他的性質，都建立在我們可以使用 JavaScript，事實上多數 browser fingerprinting 都需要 JavaScript 才可以執行。但如果沒有 JavaScript，還有可能做 browser fingerprinting 嗎？這篇文章將會討論，如果沒有 JavaScript，如何單純使用 CSS 達到 browser fingerprinting。
 
-不過可能要先澄清一下，「停用 Javascript 可以避免 browser fingerprinting」這樣的建議沒有錯（雖然挺不方便的），有鑑於幾乎所有 tracker 都還是仰賴 Javascript，這是個完全合理且有效的策略。我只是要展示如何作到沒有 Javascript 的 browser fingerprinting，沒有要反駁這個建議。
+不過可能要先澄清一下，「停用 JavaScript 可以避免 browser fingerprinting」這樣的建議沒有錯，有鑑於幾乎所有 tracker 都還是仰賴 JavaScript，這是個完全合理且有效的策略。我只是要展示如何作到沒有 JavaScript 的 browser fingerprinting，沒有要反駁這個建議。甚至我認為本章節所介紹的各種 Javascript-less Fingerprinting 技術主要還是有趣而已，實用價值遠不如前面提過的其他 browser fingerprinting 方法。
 
-## 如何利用 CSS 蒐集資訊
-Fingerprint 很重要的一個環節是，讀取各個 feature 的值，然後聚集起來當成 identifier，回傳給 server，但這要 Javascript 才能作到這樣的複雜運算，只有 CSS 大概是做不太到。（我很期待哪天看到什麼奇葩 hack 可以作到就是了）
+Browser fingerprint 的過程可以分為三大步驟：1) 讀取各個 feature 的值；2)聚集起來製成 fingerprint；3) 回傳給 server。第一步是否需要 JavaScript 取決於是什麼特徵。至於第二步，乍看之下，似乎需要 JavaScript 才能作到這樣的複雜運算，只有 CSS 大概是做不太到，但是如果把聚合成 fingerprint 的環節移動到 server-side，客戶端只負責蒐集好資訊並回傳給伺服器，則似乎就可以不用到 JavaScript 了。至於第三步，雖然除了 JavaScript 以外還有許多方式發請求，但如果沒有 JavaScript 在中間幫忙傳遞數值，可以使用的方法也會相對受限。在以下討論中，我們並不會特別區分三個步驟，但讀者可以尤其注意每個部分分別對應到上面三個步驟的哪一步。
 
-不妨換個想法，我們把聚合成 identifier 的環節移動到 server-side，client 只負責蒐集好資訊想辦法傳給 server。在 CSS 上發送請求其實蠻簡單的，一個 `background-image` 就可以解決了。
+## 選擇性執行 CSS Rules
+### 使用 background 回傳資訊
+
+在 CSS 的世界，欲觸發請求，最簡單的方式是使用背景圖片。
 
 ```css
 .probe {
@@ -19,10 +21,10 @@ Fingerprint 很重要的一個環節是，讀取各個 feature 的值，然後�
 }
 ```
 
-其中 token 是伺服器在 serve 網頁時預先帶好的。伺服器只需要稍等幾秒，看他收到哪些請求，就知道哪些 CSS rules 被執行了。理論上所有 rules 都會被執行，所以下一個任務是：想辦法依照情況只執行我們期待的 rule。
+其中 token 是伺服器在產生網頁時預先帶入的。伺服器只需要稍等幾秒，檢查它收到哪些請求，便知道哪些 CSS rules 被執行了。於是下一個任務是，令 CSS rule 根據想要蒐集的 feature 選擇性執行。
 
-## Media Query
-如果有寫過網頁前端的，肯定對 CSS 的 `@media` 不陌生。`@media` 旨在使不同環境下可以套用不同的 CSS styles，例如螢幕很寬跟很窄時使用不同的 style。通常 media query 長這樣：
+### Media Query
+如果有寫過網頁前端的，肯定對 CSS 的 `@media` 不陌生。`@media` 旨在使不同環境下可以套用不同的 CSS rules，例如螢幕很寬跟很窄時使用不同的規則。通常 media query 的結構大致如下：
 
 ```css
 @media (feature: value) {
@@ -30,40 +32,30 @@ Fingerprint 很重要的一個環節是，讀取各個 feature 的值，然後�
 }
 ```
 
-`feature` 的部份主要可以分成 media type 與 media features，我們主要在乎的是後者。
+其中 `feature` 的部份主要可以分成 media type 與 media features，我們主要在乎的是後者。
 
-如果寫過 RWD，大概會知道 media feature 可以用於在有著不同特徵的顯示裝置（主要是不同螢幕大小）上套用不同的 rule，例如寬度在某個 range 中要套用怎樣的 rule。於是我們可以利用 media type 來取代 `screen.width`，探測使用者的螢幕大小！
+如果寫過 RWD（Responsive Web Design），大概會知道 media feature 通常用於根據顯示裝置的性質（例如螢幕大小）套用不同的 CSS rule，例如寬度在某個範圍中要套用特定的 CSS rule。於是我們可以利用 `@media` 中偵測寬度的功能來取代 `screen.width`，探測使用者的螢幕大小。
 
 ```css
-@media (max-width: 349.99px) {
-	.probe {
-		background: url('/<token>/screen-width/:350');
-	}
+ @media (min-width: 600 px) {
+    #probe {
+        background: url (/<token>/width-600);
+    }
 }
-@media (min-width: 350px) and (max-width: 767.99px) {
-	.probe {
-		background: url('/<token>/screen-width/350:768');
-	}
+@media (min-width: 601 px) {
+    #probe {
+        background: url (/<token>/width-601);
+    }
 }
-@media (min-width: 768px) and (max-width: 1279.99px) {
-	.probe {
-		background: url('/<token>/screen-width/768:1280');
-	}
-}
-@media (min-width: 1280px) and (max-width: 1439.99px) {
-	.probe {
-		background: url('/<token>/screen-width/1280:1439');
-	}
-}
-@media (min-width: 1440px) and (max-width: 1919.99px) {
-	.probe {
-		background: url('/<token>/screen-width/1440:1920');
-	}
+@media (min-width: 602 px) {
+    #probe {
+        background: url (/<token>/width-602);
+    }
 }
 /* ... */
 ```
 
-於是只要看伺服器收到哪個請求，就知道使用者的螢幕大概在哪個 range。
+藉由選擇性套用 CSS rules，只有特定的 background 會被執行，於是只要檢視伺服器收到哪個請求，便可以知道使用者的螢幕寬度在哪個範圍中。
 
 
 Media feature 除了用於偵測螢幕寬度以外，還有很多其他功能。例如：
@@ -78,10 +70,10 @@ Media feature 除了用於偵測螢幕寬度以外，還有很多其他功能。
 
 這邊還有更多：[@media - MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/@media#media_features)。
 
-很難想像原來光是 CSS 就可以 leak 這麼多資訊出來齁。
+由於不同裝置的 media query 結果不一樣，有些裝置支援 HDR 有些裝置不支援，因此可以用於製成 fingerprint。除了 media query 結果直接不一樣以外，對 media query 的支援狀況也一樣可以製成 fingerprint。例如 Firefox 100 支援 `@media (video-dynamic-range: standard)`，但 Firefox 99 並不支援，這也會造成可用於 fingerprinting 的差別。
 
 ## 字型
-在討論 [fonts fingerprinting]({{< relref "/docs/browser-fingerprinting/techniques/fonts-enumeration" >}}) 時其實已經聊過如何只用 CSS 做字型是否存在的偵測，詳細討論可以回去看當時的文章。反正主要概念是：如果字型存在，CSS 會直接讀系統內建字型，如果不存在，可以指定一個 fallback 的字型，而這個 fallback 字型可以是從遠端下載的。於是，只要看到 client 來請求某個特定字型，就知道該字型並未內建於 client 的裝置中。
+過去我們討論過何謂 [fonts fingerprinting]({{< relref "/docs/browser-fingerprinting/techniques/fonts-enumeration" >}})，也提過如何使用 `@font-face` 的 fallback 機制達成 fonts fingerprinting，詳細討論可以回去看先前章節。簡言之，如果字型存在，CSS 會直接讀取系統內建字型，如果不存在，可以指定一個 fallback 的字型，又這個 fallback 字型可以是從遠端下載的。於是，只要看到客戶端來請求某個特定字型，便可以知道該字型並未內建於客戶端的裝置中。
 
 ```html
 <div style="font-face: 'Helvetica';">a</div>
@@ -96,9 +88,9 @@ Media feature 除了用於偵測螢幕寬度以外，還有很多其他功能。
 ```
 
 ## Feature Query
-另一個相對罕見的 CSS 功能是 feature query （`@supports`），它用於偵測瀏覽器是否支援各種功能。例如 `@supports (transform-origin: 5% 5%)` 可以用於偵測 browser 是否支援 `transform-origin: 5% 5%`（必須支援 `transform-origin` 而且其值可以接受百分比）。
+另一個相對罕見的 CSS 功能是 feature query （`@supports`），它用於偵測瀏覽器是否支援各種功能。例如 `@supports (transform-origin: 5% 5%)` 可以用於偵測瀏覽器是否支援 `transform-origin: 5% 5%`，也就是支援 `transform-origin` 而且其值可以接受百分比。
 
-因為同個 browser 支援的東西都大同小異，所以 feature query 比較適合用於檢測 browser 類型。
+因為同個瀏覽器支援的東西都大同小異，所以 feature query 比較適合用於檢測瀏覽器類型與版本。舉例來說：
 - `-moz-perspective: 10px` 只對 Firefox 與其他 Gecko-based browser 有效
 - `-apple-pay-button-type: plain` 只對 Safari 有效
 - `-webkit-touch-callout: default` 只對 iOS 上的 Safari 有效（iOS 上的其他 browser 都只是 Safari 換皮）
@@ -144,7 +136,7 @@ Media feature 除了用於偵測螢幕寬度以外，還有很多其他功能。
 其缺點基本上繼承了所有（有用到 JS 的）HSTS supercookie 的缺點，可以直接回之前介紹 [HSTS supercookie]({{< relref "/docs/stateful-tracking/storing-identifier#hsts-supercookie" >}}) 的文章看看。
 
 ## 結語
-一開始我們展示了數個從 CSS 取得的 feature，這些 feature 拿來做 fingerprinting 可能不太夠用，畢竟 OS 與 browser 的組合也沒有很多。如果把在討論 [attributes]({{< relref "/docs/browser-fingerprinting/techniques/attributes" >}}) 所提過的各種 HTTP Request Header 也放進來，就能大大增加 entropy。最後則是討論了只用 CSS 做 HSTS fingerprinting，雖然直接 assign identifier 可以做到更針對性的追蹤，但這也繼承了之前提過的 HSTS fingerprinting 的各種限制。
+一開始我們展示了數個從 CSS 取得的 feature，這些 feature 拿來做 fingerprinting 可能並不足以建構出足夠獨特的 fingerprint，畢竟 OS 與 browser 的組合也沒有很多。雖然可以把過去介紹過的 passive fingerprinting 也納入，但因為 passive fingerprinting 的許多特徵（尤其 HTTP request headers）也依賴於瀏覽器的類型與版本，所以和 CSS feature 並不完全獨立。因此這些技術比較屬於有趣以及火力展示，至少現階段來看，實際用途並不明顯。
 
 這邊有個完全不使用 JS 的 fingerprinting 實作，如果有興趣可以參考看看：[No-JS fingerprinting](https://noscriptfingerprint.com/)
 

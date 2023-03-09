@@ -4,9 +4,7 @@ title: "殺死 Third-party Cookie，一樣可以做 Cross-site Tracking：CNAME 
 ---
 
 # 殺死 Third-party Cookie，一樣可以做 Cross-site Tracking：CNAME Cloaking, Bounce Trackers, and Link Decorations
-在前一篇文章，我們介紹了 third-party cookie 如何用於 web tracking，也提到了因為其隱私風險，多數瀏覽器都已經封鎖或準備封鎖 third-party cookie。追蹤者當然也不會坐以待斃，此文我們將介紹幾個因應 third-party cookie 封鎖而出現的 web tracking 技術，分別是 CNAME cloaking, bounce trackers 以及 link decoration。
-
-在開始之前，可能要偷偷時空跳躍，看一下明天的文章內容。簡言之，目前最主流避免被 tracker 侵擾的方法是 content blocking，也就是直接把 tracker 阻擋掉，不讓他被下載回來，自然就沒辦法執行了。可能很多人聽過 ad blocker，這正是一種 content blocking 的應用。為了辨別誰是 tracker，有數個社群與公司維護了一長串的 filter list（黑名單）記載所有已知的 tracker 的 URL，只要 content blocker 看到有個 request 的目的地在 filter list 上，就把 request 擋下來。如果真的看不懂我在講啥，可以嘗試看完明天的文章後再回頭來看這篇，因為我想讓與 third-party cookie 有關的文章是連續的。
+先前我們介紹了 third-party cookie 如何用於 web tracking，尤其 cross-site tracking。多數瀏覽器都已經封鎖或即將封鎖 third-party cookie，更何況在許久之前便已有不少人藉由 browser extension 或其他工具阻擋 third-party cookie，這使得傳統的 cross-site tracking 技術不再是穩定可用的。為此，追蹤者也開發了數種其他 cross-site tracking 的方法。在此章節，我們將介紹三種不使用 third-party cookie的 cross-site tracking 技術，分別是 CNAME cloaking、bounce trackers 以及 link decoration。
 
 ## CNAME Cloaking
 ### CNAME Cloaking 是什麼

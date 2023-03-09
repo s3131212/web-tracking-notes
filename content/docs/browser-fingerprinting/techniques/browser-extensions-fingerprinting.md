@@ -4,26 +4,25 @@ title: "Browser Extensions Fingerprinting"
 ---
 
 # Browser Extensions Fingerprinting
-Browser extension（有時譯為「擴充套件」）是指像是 ad blocker、MetaMask 等附加於 browser 之上，可以與之互動且可能改變網頁呈現與功能的程式。這些程式大大地擴充了 browser 的功能，藉由 browser extension，可以作到很多純網頁本身做不到，但 browser 卻又沒有內建的事情。然而，browser extension 既然可以改變網頁呈現與擴充功能，如果我們可以偵測到網頁的行為或呈現方式改變了，是不是就意味著可以偵測到一個 browser extension 存在？這就是 browser extensions fingerprinting 的精神：去偵測哪些 browser extensions 存在，然後將其製為 fingerprint。
+Browser extension（有時譯為「擴充套件」）是指像是 ad blocker、MetaMask 等附加於 browser 之上，可以改變瀏覽器與網頁呈現、行為、功能等的程式。它們通常使用 JavaScript、HTML 和 CSS 編寫，並藉由瀏覽器 API 與瀏覽器進行互動，並為瀏覽器添加新的功能或改進現有功能。然而，既然 browser extension 可以改變網頁呈現與擴充功能，如果我們可以偵測到網頁的行為或呈現方式改變了，是不是就意味著可以偵測到一個 browser extension 存在。而且，每個人安裝的 browser extension 都不太一樣，於是只要能偵測哪些 browser extension 存在，便可將使用者有安裝的 browser extension 列表作為 fingerprint。這正是 browser extension fingerprinting 的核心概念。
+
+此外，追蹤者還可以根據使用者安裝了哪些 browser extension 做更進一步的 profiling。例如，如果偵測到有安裝一些開發工具，那使用者大概是工程師。或甚至，如果有偵測到一些防毒軟體用於提醒惡意網站的 browser extension，則可能透漏使用者啟用某款特定防毒軟體，這些資訊洩漏在做攻擊時將很有價值。
 
 ## Browser Extension 簡介
-在一頭栽進 fingerprinting 技術之前，還是得先知道 browser extension 到底是什麼。
+首先，我們必須先理解 browser extension 是什麼。一開始必須先釐清 browser extension 不是 browser plugin，後者如今已經不常見了。Browser plugin 的主要功能是，它可以註冊一些它支援的 content type，當瀏覽器遇到這種 content type 時，就會呼叫 browser plugin 來處理該資料。Browser plugin 通常是直接跑在作業系統的執行檔（executable）。早期通常使用 NPAPI（Netscape Plugin API），它比 IE 還要古早，基本上已經沒人使用，取而代之的有 Chrome 的 PPAPI 和 IE 的 ActiveX，但兩者也都已經沒落。Browser plugin 常見的應用有像是 Flash Player、WebATM、自然人憑證程式之類的。
 
-先做個簡單的釐清，browser extension 不是 browser plugin，後者就讓它死在歷史洪流中吧。
+Browser extension 則是可以擴充與修改瀏覽器行為的程式，通常用瀏覽器給定的 API 建立（Chrome 是 extension API，Firefox 是 WebExtension API，兩者兼容），且與一般網頁一樣是由 HTML、CSS 與 JavaScript 撰寫成，執行於瀏覽器的環境中，頂多比一般網頁有多一點點的權限，但終究是在 sandbox 內。常見的像是 ad blocker、Privacy Badger 等，很多人可能會用來操作加密貨幣錢包的 MetaMask，讓 Youtube 好用一點的 Enhancer for YouTube，各種密碼管理器之類的。基本上現在主流使用的都是 browser extension，很少會遇到 browser plugin。
 
-Browser plugin 的主要功能是，它可以註冊一些它支援的 content type，當瀏覽器遇到這種 content type 時，就會召喚 browser plugin 出來 render 資料。Browser plugin 通常是直接跑在作業系統的 executable。早期通常使用 NPAPI（Netscape Plugin API），一個比 IE 還要古早的東西，基本上死得差不多了，取而代之的有 Chrome 的 PPAPI 和 IE 的 ActiveX，但兩者也都死了。Browser plugin 常見的應用有像是 Flash Player、WebATM、自然人憑證程式之類的。
+Browser extension 可以做到的事情大概有幾個[面向](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/What_are_WebExtensions)。第一，它可以改變網頁呈現，藉此提供額外功能。例如，若使用者安裝Grammarly 的 extension，會在每個輸入框看到 Grammarly 的 icon 以及文法檢查。此外，，它可以增加、移除或修改一些內容，像是 ad blocker 用於移除廣告與 tracker，Dark Reader 可以把任何網站變成黑色主題。也有一些是增加新功能，像是 MetaMask 使網頁可以操作電子錢包。
 
-Browser extension 則是可以擴充與修改 browser 行為的程式，通常用瀏覽器給定的 API 建立（Chrome 是 extension API，Firefox 是 WebExtension API，兩者兼容），且就跟一般網頁一樣是由 HTML, CSS 與 Javascript 撰寫成，執行於 browser 的環境中，頂多比一般網頁有多一點點的權限，但終究是在 sandbox 內。常見的像是 ad blocker、Privacy Badger 等，很多人可能會用來操作加密貨幣錢包的 MetaMask，讓 Youtube 好用一點的 Enhancer for YouTube，各種密碼管理器之類的。基本上現在大家使用的都是 browser extension，很少會遇到 browser plugin 了。
 
-Browser extension 可以做到的事情大概有幾個[面向](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/What_are_WebExtensions)。第一，它可以改變網頁呈現，藉此提供額外功能，像是如果有裝 Grammarly 的外掛，就會在每個輸入框看到 Grammarly 的 icon 以及文法檢查來提醒我我英文有多爛。再來，延續上一點，它可以增加、移除或修改一些內容，像是 ad blocker 用於移除廣告與 tracker，Dark Reader 可以把任何網站變成黑色主題。也有一些是增加新功能，像是 MetaMask 使網頁可以操作電子錢包。
-
-Browser extension 大概可以分成幾個部份：
+一個完整的 browser extension 大概可以分成幾個部份：
 - background scripts：只要 browser 存在時就會在背景運作的 script，它會在背景常駐（雖然可能會被丟進 idle state，但總之它會在），background scripts 可以用所有（它有權限的）WebExtension API，可以對它有權限操作的 host 做 cross-origin requests，但不能讀到網頁內容，這需要 content scripts 協助。
 - content scripts：當使用者開啟特定網頁時，會在背景偷偷載入的 script，這個 script 可以讀到網頁內容，而且可以在該 context 下執行各種指令；content scripts 不同於一般用 `<script>` 引入的 script 在於，前者可以對它有權限操作的 host做 cross-orign requests，可以用一部分的（它有權限的） WebExtension API，而且可以跟 background script 互動，後者做不到這三點。
 - Web-accessible resources：可以讓網頁與 content scripts 讀取的 resource，可以是任意檔案，包含 HTML、CSS、Javascript 等。以 Chrome 來說，是 `chrome-extension://<extension id>/<path>`
 - Sidebars, popups, and options pages：就如其名，browser extension 可以建立三種不同樣態的 UI 供使用者操作。
 
-例如，如果我想要在特定網頁的頂部加上一個倒數計時器，就會需要把倒數計時器的 icon，以及其 CSS 與 JS 放到 web-accessible resources，等使用者開啟特定網站時，content scripts 就會載入，它可以在網頁的 DOM tree 中插入倒數計時器的 code，網頁在執行時就會去存取 web-accessible resources 以拿到倒數計時器的 CSS、JS 與 icon，並在網頁上 render 出來。
+例如，若想要在特定網頁的頂部加上一個倒數計時器，會需要把倒數計時器的 icon 以及其 CSS 與 JS 放到 web-accessible resources，等使用者開啟特定網站時，content scripts 會由瀏覽器自動載入與執行，此時 content script 可以在網頁的 DOM tree 中插入倒數計時器的 code，網頁在繪製時便會去存取 web-accessible resources 以拿到倒數計時器的 CSS、JS 與 icon，並在網頁上繪製出來。
 
 ## 如何偵測 Browser Extension 是否存在
 在這個章節，我們將簡單討論幾個偵測 browser extension 是否存在的方法。
@@ -118,14 +117,10 @@ setTimeout(() => {
 ![](/images/browser-extension-dom-detection.png)
 （左邊有安裝 browser extension，右邊無安裝）
 
-可能會有讀者尖叫：等等，怎麼可以沒討論到 ad blocker！這可是最常見的 browser extension 欸。恩對，的確是該討論 ad blocker，但它能討論的東西比較多，所以我想拉成獨立一篇文章討論，應該幾天後就會發了。
-
-或也許，這篇文章根本沒有讀者嗚嗚嗚嗚嗚嗚嗚嗚嗚嗚。
-
-至於這方法的缺點，大概就是，許多 extension 只有在遇到特定網域時觸發，例如 Youtube 相關的 browser extension 可能只會在 `youtube.com` 上會動，不像 Grammarly 或 Video Speed Controller 在任何網域都可以動，對於這種 extension，就沒辦法用 DOM tree 做偵測了，畢竟我們沒辦法 hijack `youtube.com`。
+這方法的缺點在於，許多 extension 只有在遇到特定網域時觸發，例如 Youtube 相關的 browser extension 可能只會在 `youtube.com` 上執行，不像 Grammarly 或 Video Speed Controller 在任何網域都會有所動作，對於這種只在特定網域上運作的 browser extension，沒有在名單內的網站也就無法用 DOM tree 做偵測了。
 
 ### 利用被插入的 stylesheets
-有些 browser extension 在插入 DOM element 的同時也會想加上 CSS rules，所以可能插入一些 stylesheets。於是，我們可以先檢查一個 browser extension 插入什麼樣的 stylesheet，找一個特定的 selector 出來實驗。如果在 DOM tree 新增一個符合剛剛找到的 selector 的 element，然後用 `getComputedStyle` 檢查其 CSS property 是否跟預設一樣，如果不一樣，就代表存在一個不屬於網頁的 stylesheet，也就是 browser extension 存在。
+有些 browser extension 在插入 DOM element 的同時也會想加上 CSS rules，所以可能插入一些 stylesheets。於是，我們可以先檢查一個 browser extension 插入什麼樣的 stylesheet，找一個特定的 selector 出來實驗。如果在 DOM tree 新增一個符合剛剛找到的 selector 的 element，並用 `getComputedStyle` 檢查其 CSS property 是否跟預設一樣，如果不一樣，便代表存在一個不屬於網頁的 stylesheet，也就是 browser extension 存在。
 
 舉例來說，[Wikiwand](https://chrome.google.com/webstore/detail/wikiwand-wikipedia-modern/emffkefkbkpkgpdeeooapgaicgmcbolj/related) 插入的 stylesheet 中有一個 rule 會匹配到這個 element：
 ```html
@@ -163,9 +158,10 @@ Performance Timeline API 是個用來分析 client-side latency 的工具，其�
 
 ## 防禦
 ### Web-accessible resources
-可以存取 web-accessible resources 的一個重要原因是，我們知道 browser extension 的 ID。如果不知道 ID，是不是就沒辦法存取了？事實上這正是[目前改進的方向](https://developer.chrome.com/docs/extensions/mv3/manifest/web_accessible_resources/)，讓 browser extension 的 ID 在每次 session 開始時都隨機地產生，稱之為 dynamic ID。Timing attack 也一樣可以藉由此方法改善，因為攻擊者不知道 dynamic ID，也就無法生成有效的 web-accessible resources 的 path，所以當兩個請求時間一樣時，他不知道是他猜錯 dynamic ID 還是該 browser extension 真的不存在。
+Tracker 可以存取 web-accessible resources 的一個重要前提是它們知道 browser extension 的 ID。也就是說，只要 tracker 不知道 ID，便會大幅增加存取 web-accessible resources 的難度。有一些瀏覽器開始讓 browser extension 的 ID 在每次 session 開始時都隨機地產生，使得 tracker 無法預知 ID，這種技術稱之為 [dynamic ID](https://developer.chrome.com/docs/extensions/mv3/manifest/web_accessible_resources/)。Timing attack 也一樣可以藉由此方法改善，只要 tracker 不知道 dynamic ID，便無法生成有效的 web-accessible resources 路徑，所以當兩個請求時間一樣時，它不知道是猜錯 dynamic ID 還是該 browser extension 真的不存在。
 
-然而這也不是萬無一失的，如果有 browser extension 有插入 DOM element，tracker 仍然可以從這些 DOM element 中引用 web-accessible resources 的 URL 還原出 dynamic ID，但如果都可以找到 DOM element 了，我想大概也不需要使用 web-accessible resources 來判別 extension 是否存在了。
+然而這也不是萬無一失的，如果有 browser extension 有插入 DOM element，tracker 仍然可以從這些 DOM element 中引用 web-accessible resources 的 URL 還原出 dynamic ID。不過如果都可以找到 DOM element 了，大概也不需要使用 web-accessible resources 來判別 extension 是否存在，所以也不是個嚴重的瑕疵。
+
 
 ### DOM 與 stylesheets 插入
 對此的防禦大概有兩種途徑。

@@ -4,12 +4,10 @@ title: "WebGL Fingerprinting"
 ---
 
 # WebGL Fingerprinting
-討論完 canvas fingerprinting 之後，我們要來討論它的近親：WebGL Fingerprinting。WebGL Fingerprinting 分成兩個部份：WebGL Report Fingerprinting 與 WebGL Canvas Fingerpinting，後者基本上就是 canvas fingerprinting 的 WebGL 版本，所以才說他們是近親。WebGL Fingerprinting 利用了每台電腦在軟硬體上的不同，尤其是顯卡與顯示驅動不同，來做 fingerprinting。有趣的是，因為同一台電腦配備的顯卡一樣，所以 WebGL Fingerprinting 有可能用於跨瀏覽器的 tracking，不過這部份的討論會放到其他專文。
+WebGL Fingerprinting 分成兩個部份：WebGL Report Fingerprinting 與 WebGL Canvas Fingerpinting，後者基本上就是 canvas fingerprinting 的 WebGL 版本，所以才說他們是近親。WebGL Fingerprinting 利用了每台電腦在軟硬體上的不同，尤其是顯卡與顯示驅動不同，來做 fingerprinting。有趣的是，因為同一台電腦配備的顯卡一樣，所以 WebGL Fingerprinting 有可能用於跨瀏覽器的 tracking，不過這部份的討論會放到其他專文。
 
 ## 何謂 WebGL
-一言以蔽之，WebGL 是 OpenGL 的 Web 版本。
-
-WebGL 提供了一個 interface 讓開發者可以藉由 Javascript 操作 OpenGL ES 的 API，因此得以借助此 API 來在 browser 裡面實現 2D 與 3D 的繪圖，並輸出至 `<canvas>`（與 Canvas API 無關，請見昨天的文），其中不需要使用外掛程式。WebGL 的程式大概包含幾個部份：Javascript 控制主要邏輯，GLSL（OpenGL Shading Language）處理著色器的邏輯，也就是各種電腦圖形課會有的 shading 黑魔法，然後 GPU 執行著色器的程式碼。
+一言以蔽之，WebGL 是 OpenGL 的 Web 版本。WebGL 提供了一個介面（interface）讓開發者可以藉由 JavaScript 操作 OpenGL ES 的 API，因此得以借助此 API 在瀏覽器中實現 2D 與 3D 的繪圖，並輸出至 `<canvas>`，其中不需要使用瀏覽器外掛。WebGL 的程式大概包含幾個部份：JavaScript 控制主要邏輯，GLSL（OpenGL Shading Language）處理著色器的邏輯，然後 GPU 執行著色器的程式碼。
 
 ## WebGL Report Fingerprinting
 WebGL 可以讀取許多關於顯卡以及驅動的參數，通常我們稱呼這些資訊為 WebGL report，其用於了解該設備是否符合需求。參數的種類很多，可以到 [WebGL Report](https://webglreport.com/?v=2) 看到，這些資訊都可以用於 browser fingerprinting。
@@ -31,27 +29,23 @@ console.log(`${gl.getParameter(gl.RENDERER)}, ${gl.getParameter(debugInfo.UNMASK
 因為這不是 WebGL 教學文件，我也不懂 Computer Graphics，所以就不細談每個參數的意思，只需要知道這些參數可以用於 fingerprinting。關於實作，可以參考上述 WebGL Report 網站的 [repo](https://github.com/CesiumGS/webglreport)。
 
 ## WebGL Canvas Fingerprinting
-WebGL Canvas Fingerprinting 就如同昨天提到的 canvas fingerprinting，因為軟硬體上的不同，每一台電腦上的 browser 在使用 WebGL 時，可能渲染出不太一樣的圖，利用這個特性，我們便可以用 WebGL 渲染功能來做 browser fingerprinting。
-
-與 canvas fingerprinting 類似，我們需要做的是渲染一張足夠複雜的圖，然後把圖抓出來算 hash。不過需要注意的是，早在這方法剛提出時，就有人發現 WebGL 的結果其實不太穩定，同一台電腦可能產出不一樣的結果，例如 AmIUnique 的作者就主張 WebGL canvas fingerprinting 爛透了。Cao 等人之後發現問題出 AmIUnique 沒有控制 anti-aliasing 與 canvas size 等重要參數，才導致 render 結果這麼不穩定，藉由控制這些參數，WebGL render 結果足夠穩定以致可以用於 browser fingerprinting。
+WebGL canvas fingerprinting 與 canvas fingerprinting 雷同，都是因為軟硬體上的不同，導致瀏覽器使用 WebGL 時可能繪製出不太一樣的圖，利用這個特性，追蹤者便可以用 WebGL 繪圖功能達成 browser fingerprinting。WebGL canvas fingerprinting 在實際使用上也與一般的 canvas fingerprinting 一樣，追蹤者需要繪製一張足夠複雜的圖，並把繪製結果匯出並使用雜湊函數產生 fingerprint。
 
 ### 為什麼 WebGL 的 render 結果不同
-老問題又出現了：為什麼一段一樣的 code 在不同設備上會 render 出不同的結果。Wu 等人（就是前面 Cao 等人的研究團隊）提出了一個有趣的解釋：render 的差異來自於浮點數運算的差異。幾乎所有 Computer Graphics 的演算法都廣泛地使用浮點數，當不同平台在浮點數的精準度或是處理上有差異時，便會造成誤差，又因為浮點數運算實在太多了，這些誤差會被不斷放大直到可以被偵測出來。
+於是我們又回到一樣的問題：為什麼一段相同的程式碼在不同設備上會繪製出不同的結果。Wu 等人提出了一個有趣的解釋：繪製的差異來自於浮點數運算的差異。幾乎所有 Computer Graphics 的演算法都大量地使用浮點數，當不同平台在浮點數的精準度或是處理上有差異時，便會造成誤差，又因為浮點數運算實在太多了，這些誤差會被不斷放大直到可以被偵測出來。
 
-第一種可能的誤差來自取近似值的方法。
+在那之前，我們必須先理解 WebGL 的繪製流程。WebGL 的繪製流程可以被區分為三個步驟。首先，vertex shader 會執行一系列與頂點相關的操作，例如套用旋轉矩陣等。具體而言，vertex shader 會將 attribute（套用到個別頂點的屬性）與 uniform（套用到所有頂點的屬性）綁定到每個頂點（例如套用 texture 便是在這一步），並輸出轉換後 gl_Position 與 varyings。接著 vertex shader 的輸出會被送入  WebGL 的 rasterization 與varying interpolation 模組，將模型轉換成像素網格，並且利用頂點的 attributes 對 varyings 做內插（interpolation）。上述的輸出會被送入 fragment shader 做上色，其在套用各種相關操作（例如 texture mapping）之後，將結果繪製在 canvas 上。
 
-在 Web 上我們會使用 hex triplet（三個 8bit 的數字，所以共會吃掉 24 bit）來表示顏色，但在 WebGL 中，使用三個 0~1 的浮點數來表達。於是當 WebGL 要被渲染到畫面上時，需要把 RGB 中 [0, 1] 的浮點數轉換成 [0, 255] 的 hex triplet。一個常見的實作方法是把 WebGL 的浮點數 * 256 後取近似的整數。假設在 A 瀏覽器在取近似值時使用 *floor*（無條件捨去），B 瀏覽器使用 *round*（四捨五入），這便會造成誤差。同樣是 (0.5, 0.5, 0.5)，會被分別轉換成 (127, 127, 127) 與 (128, 128, 128)。在視覺上這幾乎完全沒差，但已經足以拿來作為 fingerprint 了。
+在這整個過程中，涉及許多浮點數操作。在第一階段都有大量的矩陣操作。舉例來說，在處理頂點時，需要將頂點對應到像素網格時。WebGL 的座標系使用 [-1, 1] 的浮點數。如果有個點在 (0.0, 0.0)，若要繪製到一張 8x8 的 canvas 上，並沒有一個整數點可以剛好對應到正中央，於是放在 (4, 4), (4, 5), (5,4), (5, 5) 都是對的。對於使用無條件捨去、無條件進入、四捨五入的系統，算出來的結果便會有些微的、肉眼不可見但可用於 fingerprinting 的差異。
 
-同樣的問題也會出現在 texture mapping 時做 linear interpolation，或是計算透明度等，這些操作中也都會出現需要取近似值，而近似值的取法不同便會造成結果不同。
+在第二階段同樣會運用到許多浮點數。例如，在判斷一個像素點是否在圖形內、計算 z-buffer（識別頂點的前後順序）、對 varyings 做內插時，都會用到浮點數。例如在給定一個三角形，問一個像素點是否在三角形內，如果有便繪製三角形的顏色，否則使用底色。在不同實作下，可能會因為浮點數誤差而導致不同結果，導致該像素在不同實作下有不同的顏色。
 
-第二種誤差可能來自於浮點數本身的運算誤差。
-
-眾所皆知的，[浮點數的運算並不精準](https://0.30000000000000004.com/)，且每個 implementation 的 precision 也不一定一樣。如果現在有兩種實作，前者是 10-bit floating number，後者是 16-bit floating number，兩者經過一系列的計算之後，顯然結果會不太一樣。這所造成的影響很多。例如，當判斷一個點是否包含在某個區域內時，可能就會因為 precision 不同而在不同實作下有不同的結果。
+在第三階段，處理上色時，一樣會遇到浮點數的問題。在 Web 上會使用 hex triplet（三個 8bit 的數字）來表示顏色，但在 WebGL 中，使用三個 0~1 的浮點數來表達。於是當 WebGL 要繪製畫面時，需要把 RGB 中 [0, 1] 的浮點數轉換成 [0, 255] 的 hex triplet。一個常見的實作方法是把 WebGL 的浮點數 256 後取近似的整數。假設在 A 瀏覽器在取近似值時使用無條件捨去，B 瀏覽器使用四捨五入，便會造成誤差。同樣是 (0.5, 0.5, 0.5)，會被分別轉換成 (127, 127, 127) 與 (128, 128, 128)。在視覺上這幾乎完全沒差，但已經足以造成可用於 fingerprinting 的差異。
 
 ## 解法
-WebGL Report Fingerprinting 的解法通常只能透過完整關掉 WebGL。雖然投遞假的數值並不是不可能，但影響有限，因為透過實際嘗試繪圖，還是能重新找出真正的值。如果把參數限縮某個特定的值，則使用高階電競顯卡的使用者大概會崩潰吧。
+WebGL Report Fingerprinting 的解法，除了完整關掉 WebGL，便是投遞假的數值。例如 Brave 現在會將一些資訊混淆，extension 只回傳 `WEBGL_debug_renderer_info`，renderer 在同個 eTLD+1 同個 session 下回傳同樣的隨機字串。
 
-WebGL Canvas Fingerprinting 的防禦方法 canvas fingerprinting 很像，畢竟都是基於 canvas。基本上防禦 canvas fingerprinting 對 WebGL canvas fingerprinting 都還是有用。Tor Browser 一如往常的直接封鎖 WebGL。另一個有趣的方向是，既然我們知道 WebGL 的 render 差異來自浮點數，那就讓浮點數的計算是統一的啊，這就是前面提過的 Wu 等人的團隊之前做過的事情，有興趣的讀者可以參考 reference。
+WebGL Canvas Fingerprinting 的防禦方法 canvas fingerprinting 很像，畢竟都是基於 canvas。基本上防禦 canvas fingerprinting 對 WebGL canvas fingerprinting 都還是有用。Tor Browser 一如往常的直接封鎖 WebGL。另一個有趣的方向是，既然我們知道 WebGL 的繪製差異來自浮點數，這意味著只要浮點數運算可以統一，便能完全消除繪製結果的差異。這正是前面提過的 Wu 等人的團隊之前做過的事情，他們把第一階段的 vertex rendering 移動到 JavaScript 來做，以確保行為統一；第二階段的 rasterization 與varying interpolation，以及第三階段的 fragment rendering，則改用整數去模擬有理數運算。根據他們的實驗，如此可以確保繪製結果一定一樣。
 
 ## 同場加映：在 browser 上面做 anti-VM
 在惡意程式分析的領域中，攻擊者為了避免自己的惡意程式被分析，會偵測自己是不是在 VM 中，如果在 VM 中，就判定這是分析者的實驗環境，所以不要發作，讓分析者找不到惡意程式的行為，畢竟真正的使用者（受害者）用 VM 作為主力機的機率很低。

@@ -4,7 +4,7 @@ title: "如何對付傳統追蹤技術 (II)：如何繞過基於 Filter List 的
 ---
 
 # 如何對付傳統追蹤技術 (II)：如何繞過基於 Filter List 的 Content Blocking
-正如任何資安領域，只要有攻擊，就會有防禦，只要有防禦，就會有繞過。既然 content blocking 會擋住各種 tracker，那有沒有什麼方法可以繞過呢？Content blocker 在識別 tracker 時，大概分成：使用 filter list（黑名單）、Heuristic、Machine Learning，前兩者較為常見，而最主流的是 filter list，喊得出名字的 ad blocker 或 anti-tracking 服務，大概九成以上是基於 filter list 吧。因此，如何繞過 filter list 自然會是最受人矚目的問題。此文將整理數個技術上可行的辦法，有些很常見，有些則是可遇不可求的（？）。
+正如任何資安領域，只要有攻擊，就會有防禦，只要有防禦，就會有繞過。既然 content blocking 會阻擋 tracking script，也就有人會嘗試繞過。如同前面所提到的，content blocker 在識別 tracking script  與廣告的手段中，最主流的是使用黑名單。因此，如何繞過黑名單自然會是最受人矚目的問題。此文將整理數個技術上可行的辦法，有些很常見，有些則是可遇不可求甚至很奇葩的。
 
 稍微複習一下。Filter list 可以分成兩種型態：
 - Resource blocking：封鎖整個 domain 或特定 URL path，讓 request 無法發出
