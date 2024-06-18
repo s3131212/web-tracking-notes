@@ -74,8 +74,6 @@ Browser extension 的 content blocker 包含常見的：[Adblock Plus](https://a
 
 很遺憾的是，主流的 content blocker 多半只能二元地決定阻擋資源與否，無法做到更細緻的權限控管，例如限制 script 可以執行但不能存取儲存空間，於是使用者只能在「阻擋 tracker 並讓網站壞掉」和「不阻擋 tracker 以換取網站正常運作」之間選擇。
 
-為了解決這個問題，uBlock Origin 的作法是：手動維護一份取而代之的 code！例如前述的 analytics.js，uBlock Origin 不單純只是阻擋 HTTP request，而是直接回應一個假的、只有 interface 沒有功能的 analytics.js1。例如下面一段擷取的程式碼，可以看到所有原本 Google Analytics 的 interface 都被以 no-op 取代了。
-
 為了解決這個問題，uBlock Origin 的作法是：手動維護一份取而代之的 code！例如前述的 `analytics.js`，uBlock Origin 不單純只是阻擋 HTTP request，而是直接回應一個假的、只有 interface 沒有功能的 [analytics.js](https://github.com/gorhill/uBlock/blob/master/src/web_accessible_resources/google-analytics_analytics.js)。例如下面一段擷取的程式碼，可以看到所有原本 Google Analytics 的 interface 都被以 no-op 取代了。
 
 ```js
